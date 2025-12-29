@@ -1,10 +1,21 @@
 import { runActor } from "../services/apify.js";
-import { APIFY_ACTORS, SEARCH_QUERIES, LOCATION } from "../config/constants.js";
+import { APIFY_ACTORS, SEARCH_QUERIES, LOCATION, LIMITS } from "../config/constants.js";
 
-export async function scrapeIndeed(category = null) {
-  const queries = category
+function getLimitedQueries(category) {
+  let queries = category
     ? SEARCH_QUERIES[category]
     : Object.values(SEARCH_QUERIES).flat();
+  if (LIMITS.queriesPerCategory) {
+    queries = queries.slice(0, LIMITS.queriesPerCategory);
+  }
+  return queries;
+}
+
+export async function scrapeIndeed(category = null) {
+  const queries = getLimitedQueries(category);
+  const maxItems = LIMITS.maxJobsPerScraper || 25;
+
+  console.log(`Indeed: searching ${queries.length} queries, max ${maxItems} items each`);
 
   const allJobs = [];
 
@@ -13,7 +24,7 @@ export async function scrapeIndeed(category = null) {
       const items = await runActor(APIFY_ACTORS.indeed, {
         position: query,
         location: LOCATION,
-        maxItems: 25,
+        maxItems: maxItems,
         parseCompanyDetails: true,
         sortBy: "date"
       });

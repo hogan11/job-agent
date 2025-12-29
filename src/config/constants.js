@@ -47,3 +47,18 @@ export const APIFY_ACTORS = {
   glassdoor: "bebity/glassdoor-scraper",
   ziprecruiter: "epctex/ziprecruiter-scraper"
 };
+
+// Test mode limits - set via environment or override here
+export const LIMITS = {
+  // How many search queries to use per category (null = all)
+  queriesPerCategory: process.env.LIMIT_QUERIES ? parseInt(process.env.LIMIT_QUERIES) : null,
+
+  // Max jobs to fetch per scraper run (null = default 25)
+  maxJobsPerScraper: process.env.LIMIT_JOBS_PER_SCRAPER ? parseInt(process.env.LIMIT_JOBS_PER_SCRAPER) : null,
+
+  // Max jobs to score per batch (default 20)
+  maxJobsToScore: process.env.LIMIT_SCORE_BATCH ? parseInt(process.env.LIMIT_SCORE_BATCH) : 20,
+
+  // Which scrapers to run (null = all, or array like ["linkedin", "indeed"])
+  enabledScrapers: process.env.ENABLED_SCRAPERS ? process.env.ENABLED_SCRAPERS.split(",") : null
+};

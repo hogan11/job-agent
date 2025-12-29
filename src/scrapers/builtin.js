@@ -1,11 +1,21 @@
-import { SEARCH_QUERIES } from "../config/constants.js";
+import { SEARCH_QUERIES, LIMITS } from "../config/constants.js";
 
 const BUILTIN_BASE = "https://www.builtinseattle.com";
 
-export async function scrapeBuiltIn(category = null) {
-  const queries = category
+function getLimitedQueries(category) {
+  let queries = category
     ? SEARCH_QUERIES[category]
     : Object.values(SEARCH_QUERIES).flat();
+  if (LIMITS.queriesPerCategory) {
+    queries = queries.slice(0, LIMITS.queriesPerCategory);
+  }
+  return queries;
+}
+
+export async function scrapeBuiltIn(category = null) {
+  const queries = getLimitedQueries(category);
+
+  console.log(`BuiltIn: searching ${queries.length} queries`);
 
   const allJobs = [];
 

@@ -1,18 +1,29 @@
-import { SEARCH_QUERIES } from "../config/constants.js";
+import { SEARCH_QUERIES, LIMITS } from "../config/constants.js";
 
 const USAJOBS_API_BASE = "https://data.usajobs.gov/api/search";
 
-export async function scrapeUSAJobs(category = null) {
-  const queries = category
+function getLimitedQueries(category) {
+  let queries = category
     ? SEARCH_QUERIES[category]
     : Object.values(SEARCH_QUERIES).flat();
+  if (LIMITS.queriesPerCategory) {
+    queries = queries.slice(0, LIMITS.queriesPerCategory);
+  }
+  return queries;
+}
+
+export async function scrapeUSAJobs(category = null) {
+  const queries = getLimitedQueries(category);
+  const maxItems = LIMITS.maxJobsPerScraper || 25;
+
+  console.log(`USAJobs: searching ${queries.length} queries, max ${maxItems} items each`);
 
   const allJobs = [];
 
   for (const query of queries) {
     try {
       const response = await fetch(
-        `${USAJOBS_API_BASE}?Keyword=${encodeURIComponent(query)}&LocationName=Seattle,+Washington&ResultsPerPage=25&DatePosted=1`,
+        `${USAJOBS_API_BASE}?Keyword=${encodeURIComponent(query)}&LocationName=Seattle,+Washington&ResultsPerPage=${maxItems}&DatePosted=1`,
         {
           headers: {
             "Host": "data.usajobs.gov",

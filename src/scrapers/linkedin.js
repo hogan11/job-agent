@@ -1,10 +1,23 @@
 import { runActor } from "../services/apify.js";
-import { APIFY_ACTORS, SEARCH_QUERIES, LOCATION } from "../config/constants.js";
+import { APIFY_ACTORS, SEARCH_QUERIES, LOCATION, LIMITS } from "../config/constants.js";
 
-export async function scrapeLinkedIn(category = null) {
-  const queries = category
+// Helper to get limited queries
+function getLimitedQueries(category) {
+  let queries = category
     ? SEARCH_QUERIES[category]
     : Object.values(SEARCH_QUERIES).flat();
+
+  if (LIMITS.queriesPerCategory) {
+    queries = queries.slice(0, LIMITS.queriesPerCategory);
+  }
+  return queries;
+}
+
+export async function scrapeLinkedIn(category = null) {
+  const queries = getLimitedQueries(category);
+  const maxItems = LIMITS.maxJobsPerScraper || 25;
+
+  console.log(`LinkedIn: searching ${queries.length} queries, max ${maxItems} items each`);
 
   const allJobs = [];
 
@@ -13,7 +26,7 @@ export async function scrapeLinkedIn(category = null) {
       const items = await runActor(APIFY_ACTORS.linkedin, {
         searchQueries: [query],
         location: LOCATION,
-        maxItems: 25,
+        maxItems: maxItems,
         scrapeJobDetails: true,
         datePosted: "past24hours"
       });

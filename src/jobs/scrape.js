@@ -5,22 +5,32 @@ import { scrapeGlassdoor } from "../scrapers/glassdoor.js";
 import { scrapeUSAJobs } from "../scrapers/usajobs.js";
 import { scrapeBuiltIn } from "../scrapers/builtin.js";
 import { insertRawJob } from "../services/supabase.js";
+import { LIMITS } from "../config/constants.js";
 
-const SCRAPERS = [
-  { name: "LinkedIn", fn: scrapeLinkedIn, frequency: "30min" },
-  { name: "Indeed", fn: scrapeIndeed, frequency: "30min" },
-  { name: "Glassdoor", fn: scrapeGlassdoor, frequency: "60min" },
-  { name: "USAJobs", fn: scrapeUSAJobs, frequency: "60min" },
-  { name: "BuiltIn", fn: scrapeBuiltIn, frequency: "60min" }
+const ALL_SCRAPERS = [
+  { name: "linkedin", label: "LinkedIn", fn: scrapeLinkedIn, frequency: "30min" },
+  { name: "indeed", label: "Indeed", fn: scrapeIndeed, frequency: "30min" },
+  { name: "glassdoor", label: "Glassdoor", fn: scrapeGlassdoor, frequency: "60min" },
+  { name: "usajobs", label: "USAJobs", fn: scrapeUSAJobs, frequency: "60min" },
+  { name: "builtin", label: "BuiltIn", fn: scrapeBuiltIn, frequency: "60min" }
 ];
 
 export async function runAllScrapers() {
   console.log(`[${new Date().toISOString()}] Starting scrape run...`);
 
+  // Filter scrapers based on LIMITS.enabledScrapers
+  const SCRAPERS = LIMITS.enabledScrapers
+    ? ALL_SCRAPERS.filter(s => LIMITS.enabledScrapers.includes(s.name))
+    : ALL_SCRAPERS;
+
+  if (LIMITS.enabledScrapers) {
+    console.log(`Running limited scrapers: ${SCRAPERS.map(s => s.label).join(", ")}`);
+  }
+
   const results = { total: 0, inserted: 0, duplicates: 0, errors: [] };
 
   for (const scraper of SCRAPERS) {
-    console.log(`Running ${scraper.name} scraper...`);
+    console.log(`Running ${scraper.label} scraper...`);
 
     try {
       const jobs = await scraper.fn();
@@ -44,10 +54,10 @@ export async function runAllScrapers() {
         }
       }
 
-      console.log(`${scraper.name}: found ${jobs.length} jobs`);
+      console.log(`${scraper.label}: found ${jobs.length} jobs`);
     } catch (error) {
-      console.error(`${scraper.name} scraper failed:`, error.message);
-      results.errors.push({ scraper: scraper.name, error: error.message });
+      console.error(`${scraper.label} scraper failed:`, error.message);
+      results.errors.push({ scraper: scraper.label, error: error.message });
     }
   }
 
