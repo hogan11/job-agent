@@ -1,0 +1,74 @@
+import "dotenv/config";
+import { scrapeLinkedIn } from "../scrapers/linkedin.js";
+import { scrapeIndeed } from "../scrapers/indeed.js";
+import { scrapeGlassdoor } from "../scrapers/glassdoor.js";
+import { scrapeUSAJobs } from "../scrapers/usajobs.js";
+import { scrapeBuiltIn } from "../scrapers/builtin.js";
+import { insertRawJob } from "../services/supabase.js";
+
+const SCRAPERS = [
+  { name: "LinkedIn", fn: scrapeLinkedIn, frequency: "30min" },
+  { name: "Indeed", fn: scrapeIndeed, frequency: "30min" },
+  { name: "Glassdoor", fn: scrapeGlassdoor, frequency: "60min" },
+  { name: "USAJobs", fn: scrapeUSAJobs, frequency: "60min" },
+  { name: "BuiltIn", fn: scrapeBuiltIn, frequency: "60min" }
+];
+
+export async function runAllScrapers() {
+  console.log(`[${new Date().toISOString()}] Starting scrape run...`);
+
+  const results = { total: 0, inserted: 0, duplicates: 0, errors: [] };
+
+  for (const scraper of SCRAPERS) {
+    console.log(`Running ${scraper.name} scraper...`);
+
+    try {
+      const jobs = await scraper.fn();
+      results.total += jobs.length;
+
+      for (const job of jobs) {
+        try {
+          const inserted = await insertRawJob(job);
+          if (inserted && inserted.length > 0) {
+            results.inserted++;
+          } else {
+            results.duplicates++;
+          }
+        } catch (error) {
+          if (error.code === "23505") {
+            results.duplicates++;
+          } else {
+            console.error(`Insert error for ${job.title}:`, error.message);
+            results.errors.push({ job: job.title, error: error.message });
+          }
+        }
+      }
+
+      console.log(`${scraper.name}: found ${jobs.length} jobs`);
+    } catch (error) {
+      console.error(`${scraper.name} scraper failed:`, error.message);
+      results.errors.push({ scraper: scraper.name, error: error.message });
+    }
+  }
+
+  console.log(`
+Scrape complete:
+  - Total jobs found: ${results.total}
+  - New jobs inserted: ${results.inserted}
+  - Duplicates skipped: ${results.duplicates}
+  - Errors: ${results.errors.length}
+`);
+
+  return results;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAllScrapers()
+    .then(() => process.exit(0))
+    .catch(error => {
+      console.error("Scrape failed:", error);
+      process.exit(1);
+    });
+}
+
+export default { runAllScrapers };
