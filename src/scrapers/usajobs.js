@@ -27,8 +27,8 @@ export async function scrapeUSAJobs(category = null) {
         {
           headers: {
             "Host": "data.usajobs.gov",
-            "User-Agent": "job-hunter-agent/1.0",
-            "Authorization-Key": process.env.USAJOBS_API_KEY || ""
+            "User-Agent": process.env.USAJOBS_EMAIL || process.env.USA_JOBS_EMAIL || "",
+            "Authorization-Key": process.env.USAJOBS_API_KEY || process.env.USA_JOBS_API_KEY || ""
           }
         }
       );
