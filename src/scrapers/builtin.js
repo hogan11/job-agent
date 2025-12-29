@@ -50,23 +50,45 @@ export async function scrapeBuiltIn(category = null) {
 function parseBuiltInHTML(html, category) {
   const jobs = [];
 
-  const jobPattern = /data-job-id="(\d+)".*?href="([^"]+)".*?class="[^"]*job-title[^"]*"[^>]*>([^<]+)/gs;
+  // Extract JSON-LD structured data (more reliable than HTML parsing)
+  const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  if (!jsonLdMatch) {
+    console.log("BuiltIn: No JSON-LD data found");
+    return jobs;
+  }
 
-  let match;
-  while ((match = jobPattern.exec(html)) !== null) {
-    jobs.push({
-      source: "builtin",
-      externalId: match[1],
-      url: match[2].startsWith("http") ? match[2] : `${BUILTIN_BASE}${match[2]}`,
-      title: match[3].trim(),
-      company: "Unknown",
-      location: "Seattle, WA",
-      salaryRange: null,
-      postedAt: new Date(),
-      description: null,
-      companySize: null,
-      roleCategory: category
-    });
+  try {
+    const jsonLd = JSON.parse(jsonLdMatch[1]);
+    const graph = jsonLd["@graph"] || [jsonLd];
+
+    // Find the ItemList containing job listings
+    const itemList = graph.find(item => item["@type"] === "ItemList");
+    if (!itemList || !itemList.itemListElement) {
+      console.log("BuiltIn: No ItemList found in JSON-LD");
+      return jobs;
+    }
+
+    for (const item of itemList.itemListElement) {
+      // Extract job ID from URL (e.g., /job/title/8029223 -> 8029223)
+      const urlMatch = item.url?.match(/\/(\d+)$/);
+      const externalId = urlMatch ? urlMatch[1] : item.url;
+
+      jobs.push({
+        source: "builtin",
+        externalId: externalId,
+        url: item.url?.startsWith("http") ? item.url : `${BUILTIN_BASE}${item.url}`,
+        title: item.name,
+        company: "Unknown", // Not in JSON-LD summary, would need detail fetch
+        location: "Seattle, WA",
+        salaryRange: null,
+        postedAt: new Date(),
+        description: item.description || null,
+        companySize: null,
+        roleCategory: category
+      });
+    }
+  } catch (error) {
+    console.error("BuiltIn: Failed to parse JSON-LD:", error.message);
   }
 
   return jobs;
