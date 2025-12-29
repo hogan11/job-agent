@@ -21,7 +21,7 @@ CREATE TABLE raw_jobs (
 -- AI-scored jobs
 CREATE TABLE scored_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  raw_job_id UUID REFERENCES raw_jobs(id),
+  raw_job_id UUID NOT NULL REFERENCES raw_jobs(id) ON DELETE CASCADE,
   fit_score INTEGER,
   ghost_job_likelihood INTEGER,
   role_category VARCHAR(50),
@@ -36,7 +36,7 @@ CREATE TABLE scored_jobs (
 -- Application tracking
 CREATE TABLE applications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  scored_job_id UUID REFERENCES scored_jobs(id),
+  scored_job_id UUID NOT NULL REFERENCES scored_jobs(id) ON DELETE CASCADE,
   status VARCHAR(50) DEFAULT 'interested',
   applied_at TIMESTAMP,
   notes TEXT,
@@ -50,3 +50,5 @@ CREATE INDEX idx_raw_jobs_processed ON raw_jobs(processed);
 CREATE INDEX idx_raw_jobs_source ON raw_jobs(source);
 CREATE INDEX idx_scored_jobs_priority ON scored_jobs(priority_tier);
 CREATE INDEX idx_scored_jobs_notified ON scored_jobs(notified);
+CREATE INDEX idx_scored_jobs_raw_job_id ON scored_jobs(raw_job_id);
+CREATE INDEX idx_applications_scored_job_id ON applications(scored_job_id);

@@ -1,6 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+  console.warn("Warning: SUPABASE_URL or SUPABASE_KEY not set");
+}
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
@@ -77,6 +81,9 @@ export async function insertScoredJob(scoredJob) {
     .select();
 
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error("Failed to insert scored job: no data returned");
+  }
   return data[0];
 }
 
