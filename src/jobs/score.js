@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { getUnprocessedJobs, markJobProcessed, insertScoredJob } from "../services/supabase.js";
 import { scoreJob, generateCoverLetter } from "../services/claude.js";
-import { PRIORITY_THRESHOLDS } from "../config/constants.js";
+import { PRIORITY_THRESHOLDS, COVER_LETTER_THRESHOLD } from "../config/constants.js";
 
 export async function runScoring(batchSize = 20) {
   console.log(`[${new Date().toISOString()}] Starting scoring run...`);
@@ -24,9 +24,12 @@ export async function runScoring(batchSize = 20) {
       }
 
       if (scored.fitScore >= PRIORITY_THRESHOLDS.HIGH) {
-        console.log(`Generating cover letter for high-priority job...`);
-        scored.coverLetterDraft = await generateCoverLetter(job, scored);
         results.highPriority++;
+        // Only generate cover letters for exceptional matches (95+)
+        if (scored.fitScore >= COVER_LETTER_THRESHOLD) {
+          console.log(`Generating cover letter for exceptional match (${scored.fitScore})...`);
+          scored.coverLetterDraft = await generateCoverLetter(job, scored);
+        }
       } else if (scored.fitScore >= PRIORITY_THRESHOLDS.MEDIUM) {
         results.mediumPriority++;
       } else {

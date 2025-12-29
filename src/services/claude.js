@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { CANDIDATE_PROFILE, SCORING_INSTRUCTIONS } from "../config/profile.js";
-import { PRIORITY_THRESHOLDS, DEPRIORITIZE_COMPANIES } from "../config/constants.js";
+import { PRIORITY_THRESHOLDS, DEPRIORITIZE_COMPANIES, SKIP_TITLE_KEYWORDS } from "../config/constants.js";
 
 const anthropic = new Anthropic();
 
@@ -28,15 +28,30 @@ export async function scoreJob(job) {
 }
 
 function buildScoringPrompt(job) {
-  const isDeprioritized = DEPRIORITIZE_COMPANIES.some(
+  const isDeprioritizedCompany = DEPRIORITIZE_COMPANIES.some(
     company => job.company?.toLowerCase().includes(company.toLowerCase())
   );
+
+  // Check if title contains deprioritized keywords
+  const titleLower = (job.title || "").toLowerCase();
+  const deprioritizedKeywords = SKIP_TITLE_KEYWORDS.filter(
+    keyword => titleLower.includes(keyword.toLowerCase())
+  );
+  const hasDeprioritizedRole = deprioritizedKeywords.length > 0;
+
+  let deprioritizationNotes = "";
+  if (isDeprioritizedCompany) {
+    deprioritizationNotes += "NOTE: This company (Amazon/AWS) should be heavily deprioritized (-30 pts).\n";
+  }
+  if (hasDeprioritizedRole) {
+    deprioritizationNotes += `NOTE: This role contains keywords (${deprioritizedKeywords.join(", ")}) that are NOT a good fit. Score should be MEDIUM at most (under 80).\n`;
+  }
 
   return `${CANDIDATE_PROFILE}
 
 ${SCORING_INSTRUCTIONS}
 
-${isDeprioritized ? "NOTE: This company (Amazon/AWS) should be heavily deprioritized (-30 pts).\n" : ""}
+${deprioritizationNotes}
 
 JOB TO SCORE:
 Title: ${job.title}

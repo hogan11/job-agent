@@ -5,7 +5,28 @@ import { scrapeGlassdoor } from "../scrapers/glassdoor.js";
 import { scrapeUSAJobs } from "../scrapers/usajobs.js";
 import { scrapeBuiltIn } from "../scrapers/builtin.js";
 import { insertRawJob } from "../services/supabase.js";
-import { LIMITS } from "../config/constants.js";
+import { LIMITS, SKIP_COMPANIES, SKIP_TITLE_KEYWORDS } from "../config/constants.js";
+
+// Pre-filter jobs before storing
+function shouldSkipJob(job) {
+  // Skip blocked companies
+  const companyLower = (job.company || "").toLowerCase();
+  for (const blocked of SKIP_COMPANIES) {
+    if (companyLower.includes(blocked.toLowerCase())) {
+      return `company: ${blocked}`;
+    }
+  }
+
+  // Skip blocked title keywords
+  const titleLower = (job.title || "").toLowerCase();
+  for (const keyword of SKIP_TITLE_KEYWORDS) {
+    if (titleLower.includes(keyword.toLowerCase())) {
+      return `title contains: ${keyword}`;
+    }
+  }
+
+  return null;
+}
 
 const ALL_SCRAPERS = [
   { name: "linkedin", label: "LinkedIn", fn: scrapeLinkedIn, frequency: "30min" },
@@ -27,7 +48,7 @@ export async function runAllScrapers() {
     console.log(`Running limited scrapers: ${SCRAPERS.map(s => s.label).join(", ")}`);
   }
 
-  const results = { total: 0, inserted: 0, duplicates: 0, errors: [] };
+  const results = { total: 0, inserted: 0, duplicates: 0, filtered: 0, errors: [] };
 
   for (const scraper of SCRAPERS) {
     console.log(`Running ${scraper.label} scraper...`);
@@ -37,6 +58,14 @@ export async function runAllScrapers() {
       results.total += jobs.length;
 
       for (const job of jobs) {
+        // Pre-filter before storing
+        const skipReason = shouldSkipJob(job);
+        if (skipReason) {
+          console.log(`  Skipping "${job.title}" (${skipReason})`);
+          results.filtered++;
+          continue;
+        }
+
         try {
           const inserted = await insertRawJob(job);
           if (inserted && inserted.length > 0) {
@@ -64,6 +93,7 @@ export async function runAllScrapers() {
   console.log(`
 Scrape complete:
   - Total jobs found: ${results.total}
+  - Pre-filtered out: ${results.filtered}
   - New jobs inserted: ${results.inserted}
   - Duplicates skipped: ${results.duplicates}
   - Errors: ${results.errors.length}

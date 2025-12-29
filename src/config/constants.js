@@ -41,6 +41,24 @@ export const DEPRIORITIZE_COMPANIES = [
   "Amazon Web Services"
 ];
 
+// Companies to completely skip (don't even store in DB)
+export const SKIP_COMPANIES = [
+  "Microsoft",
+  "Amazon",
+  "AWS",
+  "Amazon Web Services"
+];
+
+// Title keywords to skip (case-insensitive)
+export const SKIP_TITLE_KEYWORDS = [
+  "fundraising",
+  "sales",
+  "payroll"
+];
+
+// Score threshold for generating cover letters
+export const COVER_LETTER_THRESHOLD = 95;
+
 export const APIFY_ACTORS = {
   linkedin: "anchor/linkedin-jobs-scraper",
   indeed: "misceres/indeed-scraper",
