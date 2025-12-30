@@ -10,6 +10,7 @@
     "start": "node src/index.js",
     "scrape": "node src/jobs/scrape.js",
     "score": "node src/jobs/score.js",
+    "generate": "node src/jobs/generate.js",
     "notify": "node src/jobs/notify.js",
     "test": "vitest"
   },
@@ -22,9 +23,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
-    "@supabase/supabase-js": "^2.89.0",
     "apify-client": "^2.21.0",
     "dotenv": "^17.2.3",
+    "googleapis": "^169.0.0",
     "node-cron": "^4.2.1",
     "resend": "^6.6.0"
   },

@@ -1,13 +1,14 @@
 import "dotenv/config";
-import { getUnprocessedJobs, markJobProcessed, insertScoredJob } from "../services/supabase.js";
+import { getUnscoredJobs, updateJob } from "../services/sheets.js";
 import { scoreJob, generateCoverLetter } from "../services/claude.js";
 import { PRIORITY_THRESHOLDS, COVER_LETTER_THRESHOLD } from "../config/constants.js";
 
 export async function runScoring(batchSize = 20) {
   console.log(`[${new Date().toISOString()}] Starting scoring run...`);
 
-  const jobs = await getUnprocessedJobs(batchSize);
-  console.log(`Found ${jobs.length} unprocessed jobs`);
+  const allJobs = await getUnscoredJobs();
+  const jobs = allJobs.slice(0, batchSize);
+  console.log(`Found ${jobs.length} unscored jobs`);
 
   const results = { processed: 0, highPriority: 0, mediumPriority: 0, lowPriority: 0, errors: [] };
 
@@ -23,21 +24,25 @@ export async function runScoring(batchSize = 20) {
         continue;
       }
 
+      let priority = "low";
       if (scored.fitScore >= PRIORITY_THRESHOLDS.HIGH) {
+        priority = "high";
         results.highPriority++;
-        // Only generate cover letters for exceptional matches (95+)
-        if (scored.fitScore >= COVER_LETTER_THRESHOLD) {
-          console.log(`Generating cover letter for exceptional match (${scored.fitScore})...`);
-          scored.coverLetterDraft = await generateCoverLetter(job, scored);
-        }
       } else if (scored.fitScore >= PRIORITY_THRESHOLDS.MEDIUM) {
+        priority = "medium";
         results.mediumPriority++;
       } else {
         results.lowPriority++;
       }
 
-      await insertScoredJob(scored);
-      await markJobProcessed(job.id);
+      // Update the job in Google Sheets
+      await updateJob(job.id, {
+        score: scored.fitScore,
+        priority: priority,
+        status: "Scored",
+        aiReasoning: scored.aiReasoning,
+        keyRequirements: scored.keyRequirements
+      });
 
       results.processed++;
 

@@ -4,7 +4,7 @@ import { scrapeIndeed } from "../scrapers/indeed.js";
 import { scrapeGlassdoor } from "../scrapers/glassdoor.js";
 import { scrapeUSAJobs } from "../scrapers/usajobs.js";
 import { scrapeBuiltIn } from "../scrapers/builtin.js";
-import { insertRawJob } from "../services/supabase.js";
+import { appendJob, jobExists, initializeSheet } from "../services/sheets.js";
 import { LIMITS, SKIP_COMPANIES, SKIP_TITLE_KEYWORDS } from "../config/constants.js";
 
 // Pre-filter jobs before storing
@@ -39,6 +39,9 @@ const ALL_SCRAPERS = [
 export async function runAllScrapers() {
   console.log(`[${new Date().toISOString()}] Starting scrape run...`);
 
+  // Initialize Google Sheet
+  await initializeSheet();
+
   // Filter scrapers based on LIMITS.enabledScrapers
   const SCRAPERS = LIMITS.enabledScrapers
     ? ALL_SCRAPERS.filter(s => LIMITS.enabledScrapers.includes(s.name))
@@ -67,19 +70,24 @@ export async function runAllScrapers() {
         }
 
         try {
-          const inserted = await insertRawJob(job);
-          if (inserted && inserted.length > 0) {
-            results.inserted++;
-          } else {
+          // Check if job already exists (by URL)
+          const exists = await jobExists(job.url);
+          if (exists) {
             results.duplicates++;
+            continue;
           }
+
+          // Add to Google Sheets
+          await appendJob({
+            title: job.title,
+            company: job.company,
+            location: job.location,
+            url: job.url
+          });
+          results.inserted++;
         } catch (error) {
-          if (error.code === "23505") {
-            results.duplicates++;
-          } else {
-            console.error(`Insert error for ${job.title}:`, error.message);
-            results.errors.push({ job: job.title, error: error.message });
-          }
+          console.error(`Insert error for ${job.title}:`, error.message);
+          results.errors.push({ job: job.title, error: error.message });
         }
       }
 

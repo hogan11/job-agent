@@ -2,12 +2,13 @@ import "dotenv/config";
 import cron from "node-cron";
 import { runAllScrapers } from "./jobs/scrape.js";
 import { runScoring } from "./jobs/score.js";
+import { processApprovedJobs } from "./jobs/generate.js";
 import { sendNotifications, sendDailyDigest, sendEveningDigest } from "./jobs/notify.js";
 
-console.log("🚀 Job Hunter Agent starting...");
+console.log("Job Hunter Agent starting...");
 console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 
-const requiredEnvVars = ["APIFY_TOKEN", "SUPABASE_URL", "SUPABASE_KEY", "ANTHROPIC_API_KEY"];
+const requiredEnvVars = ["GOOGLE_SHEET_ID", "ANTHROPIC_API_KEY"];
 
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {
@@ -24,6 +25,7 @@ async function runPipeline() {
   try {
     await runAllScrapers();
     await runScoring();
+    await processApprovedJobs(); // Generate cover letters for approved jobs
     await sendNotifications();
     console.log("Pipeline completed successfully");
   } catch (error) {
