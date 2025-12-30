@@ -31,8 +31,21 @@ export const SEARCH_QUERIES = {
 export const LOCATION = "Seattle, WA";
 
 export const PRIORITY_THRESHOLDS = {
-  HIGH: 80,
+  HIGH: 85,
   MEDIUM: 50
+};
+
+// Freshness tiers based on job age (in hours)
+export const FRESHNESS_TIERS = {
+  HOT: 2,      // 🔥 Hot: posted within 2 hours
+  NEW: 24,     // ✨ New: posted within 24 hours
+  STANDARD: Infinity  // 📋 Standard: older than 24 hours
+};
+
+export const FRESHNESS_LABELS = {
+  HOT: "🔥 Hot",
+  NEW: "✨ New",
+  STANDARD: "📋 Standard"
 };
 
 export const DEPRIORITIZE_COMPANIES = [

@@ -1,12 +1,16 @@
 import { google } from "googleapis";
 import path from "path";
 import { fileURLToPath } from "url";
+import { FRESHNESS_TIERS, FRESHNESS_LABELS } from "../config/constants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CREDENTIALS_PATH = path.join(__dirname, "../../google-credentials.json");
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
 // Column headers for the jobs sheet
+// A=ID, B=Title, C=Company, D=Location, E=URL, F=Score, G=Priority
+// H=Scraped At, I=Status, J=Approved, K=Notes, L=AI Reasoning, M=Key Requirements
+// N=Cover Letter, O=Custom Resume Link, P=Freshness
 const HEADERS = [
   "ID",
   "Title",
@@ -22,7 +26,8 @@ const HEADERS = [
   "AI Reasoning",
   "Key Requirements",
   "Cover Letter",
-  "Custom Resume Link"
+  "Custom Resume Link",
+  "Freshness"
 ];
 
 let sheetsClient = null;
@@ -45,14 +50,14 @@ export async function initializeSheet() {
   // Check if headers exist
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: "A1:O1"
+    range: "A1:P1"
   });
 
   if (!response.data.values || response.data.values.length === 0) {
     // Add headers
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
-      range: "A1:O1",
+      range: "A1:P1",
       valueInputOption: "RAW",
       requestBody: {
         values: [HEADERS]
@@ -75,19 +80,20 @@ export async function appendJob(job) {
     job.url,
     job.score || "",
     job.priority || "",
-    new Date().toISOString(),
-    "New",           // Status
-    "FALSE",         // Approved checkbox
-    "",              // Notes
+    new Date().toISOString(),   // Scraped At
+    "New",                      // Status
+    "FALSE",                    // Approved checkbox
+    "",                         // Notes
     job.aiReasoning || "",
     job.keyRequirements?.join(", ") || "",
     job.coverLetter || "",
-    ""               // Custom Resume Link
+    "",                         // Custom Resume Link
+    job.freshness || "🔥 Hot"   // Freshness (column P)
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: SHEET_ID,
-    range: "A:O",
+    range: "A:P",
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: {
@@ -103,7 +109,7 @@ export async function getAllJobs() {
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID,
-    range: "A2:O" // Skip header row
+    range: "A2:P" // Skip header row
   });
 
   const rows = response.data.values || [];
@@ -123,7 +129,8 @@ export async function getAllJobs() {
     aiReasoning: row[11],
     keyRequirements: row[12],
     coverLetter: row[13],
-    customResumeLink: row[14]
+    customResumeLink: row[14],
+    freshness: row[15] || "📋 Standard"  // Column P (index 15)
   }));
 }
 
@@ -154,6 +161,8 @@ export async function updateJob(jobId, updates) {
   const actualRow = rowIndex + 2; // +1 for header, +1 for 0-index
 
   // Build update ranges based on what's being updated
+  // Columns: F=Score, G=Priority, I=Status, L=AI Reasoning,
+  //          M=Key Requirements, N=Cover Letter, O=Custom Resume Link, P=Freshness
   const updateRanges = [];
 
   if (updates.score !== undefined) {
@@ -198,6 +207,12 @@ export async function updateJob(jobId, updates) {
       values: [[updates.customResumeLink]]
     });
   }
+  if (updates.freshness !== undefined) {
+    updateRanges.push({
+      range: `P${actualRow}`,
+      values: [[updates.freshness]]
+    });
+  }
 
   for (const update of updateRanges) {
     await sheets.spreadsheets.values.update({
@@ -218,6 +233,48 @@ export async function jobExists(url) {
   return jobs.some(j => j.url === url);
 }
 
+/**
+ * Calculate freshness tier based on job age
+ */
+export function calculateFreshness(scrapedAt) {
+  const ageHours = (Date.now() - new Date(scrapedAt).getTime()) / (1000 * 60 * 60);
+
+  if (ageHours <= FRESHNESS_TIERS.HOT) {
+    return FRESHNESS_LABELS.HOT;
+  } else if (ageHours <= FRESHNESS_TIERS.NEW) {
+    return FRESHNESS_LABELS.NEW;
+  } else {
+    return FRESHNESS_LABELS.STANDARD;
+  }
+}
+
+/**
+ * Refresh freshness tiers for all jobs based on current time
+ * Called at the start of each pipeline run to update stale freshness values
+ */
+export async function refreshFreshness() {
+  const jobs = await getAllJobs();
+  let updated = 0;
+
+  for (const job of jobs) {
+    if (!job.scrapedAt) continue;
+
+    const currentFreshness = calculateFreshness(job.scrapedAt);
+
+    // Only update if freshness has changed
+    if (job.freshness !== currentFreshness) {
+      await updateJob(job.id, { freshness: currentFreshness });
+      updated++;
+    }
+  }
+
+  if (updated > 0) {
+    console.log(`Updated freshness for ${updated} jobs`);
+  }
+
+  return updated;
+}
+
 export default {
   initializeSheet,
   appendJob,
@@ -226,5 +283,7 @@ export default {
   getApprovedJobs,
   getUnscoredJobs,
   updateJob,
-  jobExists
+  jobExists,
+  calculateFreshness,
+  refreshFreshness
 };

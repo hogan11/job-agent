@@ -2,7 +2,7 @@ import "dotenv/config";
 import { getJobsByStatus, updateJob, getAllJobs } from "../services/sheets.js";
 import { sendHighPriorityAlert, sendToAllJobsChannel } from "../services/discord.js";
 import { sendDigestEmail } from "../services/email.js";
-import { PRIORITY_THRESHOLDS } from "../config/constants.js";
+import { PRIORITY_THRESHOLDS, FRESHNESS_LABELS } from "../config/constants.js";
 
 export async function sendNotifications() {
   console.log(`[${new Date().toISOString()}] Starting notification run...`);
@@ -15,10 +15,11 @@ export async function sendNotifications() {
 
   for (const job of scoredJobs) {
     try {
-      // Format for Discord
+      // Format for Discord - include freshness
       const scoredJob = {
         fit_score: job.score,
         priority_tier: job.priority,
+        freshness: job.freshness,
         ai_reasoning: job.aiReasoning,
         cover_letter_draft: job.coverLetter
       };
@@ -31,9 +32,16 @@ export async function sendNotifications() {
 
       await sendToAllJobsChannel(scoredJob, rawJob);
 
-      if (job.score >= PRIORITY_THRESHOLDS.HIGH) {
+      // High-priority alert: Score >= threshold AND job is Hot (fresh)
+      const isHot = job.freshness === FRESHNESS_LABELS.HOT;
+      const isHighScore = job.score >= PRIORITY_THRESHOLDS.HIGH;
+
+      if (isHighScore && isHot) {
         await sendHighPriorityAlert(scoredJob, rawJob);
         results.highPriority++;
+        console.log(`  🔥 HIGH PRIORITY: ${job.title} (Score: ${job.score}, ${job.freshness})`);
+      } else if (isHighScore) {
+        console.log(`  ⏳ High score but not hot: ${job.title} (Score: ${job.score}, ${job.freshness})`);
       }
 
       await updateJob(job.id, { status: "Notified" });

@@ -4,6 +4,7 @@ import { runAllScrapers } from "./jobs/scrape.js";
 import { runScoring } from "./jobs/score.js";
 import { processApprovedJobs } from "./jobs/generate.js";
 import { sendNotifications, sendDailyDigest, sendEveningDigest } from "./jobs/notify.js";
+import { refreshFreshness } from "./services/sheets.js";
 
 console.log("Job Hunter Agent starting...");
 console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
@@ -23,6 +24,9 @@ async function runPipeline() {
   console.log("=".repeat(50));
 
   try {
+    // Update freshness tiers based on job age (Hot → New → Standard)
+    await refreshFreshness();
+
     await runAllScrapers();
     await runScoring();
     await processApprovedJobs(); // Generate cover letters for approved jobs
