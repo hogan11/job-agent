@@ -1,7 +1,4 @@
 import "dotenv/config";
-import { scrapeLinkedIn } from "../scrapers/linkedin.js";
-import { scrapeIndeed } from "../scrapers/indeed.js";
-import { scrapeGlassdoor } from "../scrapers/glassdoor.js";
 import { scrapeUSAJobs } from "../scrapers/usajobs.js";
 import { scrapeBuiltIn } from "../scrapers/builtin.js";
 import { appendJob, jobExists, initializeSheet } from "../services/sheets.js";
@@ -28,12 +25,10 @@ function shouldSkipJob(job) {
   return null;
 }
 
+// Free sources only - no Apify costs
 const ALL_SCRAPERS = [
-  { name: "linkedin", label: "LinkedIn", fn: scrapeLinkedIn, frequency: "30min" },
-  { name: "indeed", label: "Indeed", fn: scrapeIndeed, frequency: "30min" },
-  { name: "glassdoor", label: "Glassdoor", fn: scrapeGlassdoor, frequency: "60min" },
-  { name: "usajobs", label: "USAJobs", fn: scrapeUSAJobs, frequency: "60min" },
-  { name: "builtin", label: "BuiltIn", fn: scrapeBuiltIn, frequency: "60min" }
+  { name: "usajobs", label: "USAJobs", fn: scrapeUSAJobs, frequency: "30min" },
+  { name: "builtin", label: "BuiltIn", fn: scrapeBuiltIn, frequency: "30min" }
 ];
 
 export async function runAllScrapers() {

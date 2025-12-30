@@ -22,8 +22,9 @@ export async function scrapeUSAJobs(category = null) {
 
   for (const query of queries) {
     try {
+      // Filter for senior roles: GS-14, GS-15, SES (Senior Executive Service)
       const response = await fetch(
-        `${USAJOBS_API_BASE}?Keyword=${encodeURIComponent(query)}&LocationName=Seattle,+Washington&ResultsPerPage=${maxItems}&DatePosted=1`,
+        `${USAJOBS_API_BASE}?Keyword=${encodeURIComponent(query)}&LocationName=Seattle,+Washington&ResultsPerPage=${maxItems}&DatePosted=1&PayGradeLow=14`,
         {
           headers: {
             "Host": "data.usajobs.gov",

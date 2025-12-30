@@ -66,18 +66,41 @@ export const SKIP_COMPANIES = [
 export const SKIP_TITLE_KEYWORDS = [
   "fundraising",
   "sales",
-  "payroll"
+  "payroll",
+  // Healthcare/clinical roles
+  "nurse",
+  "nursing",
+  "counselor",
+  "therapist",
+  "social worker",
+  "physician",
+  "medical",
+  "clinical",
+  "pharmacist",
+  // Law enforcement/corrections
+  "correctional",
+  "investigator",
+  "police",
+  "officer",
+  // Other non-target roles
+  "custodian",
+  "maintenance",
+  "food service",
+  "clerk",
+  "secretary",
+  "receptionist"
 ];
 
 // Score threshold for generating cover letters
 export const COVER_LETTER_THRESHOLD = 95;
 
-export const APIFY_ACTORS = {
-  linkedin: "anchor/linkedin-jobs-scraper",
-  indeed: "misceres/indeed-scraper",
-  glassdoor: "bebity/glassdoor-scraper",
-  ziprecruiter: "epctex/ziprecruiter-scraper"
-};
+// Apify actors disabled - using free sources only
+// export const APIFY_ACTORS = {
+//   linkedin: "anchor/linkedin-jobs-scraper",
+//   indeed: "misceres/indeed-scraper",
+//   glassdoor: "bebity/glassdoor-scraper",
+//   ziprecruiter: "epctex/ziprecruiter-scraper"
+// };
 
 // Test mode limits - set via environment or override here
 export const LIMITS = {
